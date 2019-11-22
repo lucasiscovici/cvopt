@@ -376,7 +376,7 @@ class NoteBookVisualizer():
             # mk bokeh source
             self.cv_src, cv_hover = self._mk_score_source(cv_results, xcol=NoteBookVisualizer.time_col, score_cols=[NoteBookVisualizer.score_cols[i] for i in self.data_types], 
                                                           hover_cols=self.all_param_cols)
-            self.end_time_src = ColumnDataSource(data=dict(text=["This search end time(estimated): "+estimeted_end_time]))
+            self.end_time_src = ColumnDataSource(data=dict(text=["This search end time(estimated): {}".format(estimeted_end_time)]))
             self.cv_score_std_src = ColumnDataSource(data=cv_score_std)
             self.best_src = self._mk_score_source(cv_results, xcol=NoteBookVisualizer.time_col, score_cols=["best_"+i for i in self.data_types])
             
@@ -484,7 +484,7 @@ class NoteBookVisualizer():
             self.bokeh_handle = show(self.p, notebook_handle=True)
         else:
             # update bokeh src
-            self.end_time_src.patch({"text":[(0, "This search end time(estimated): "+estimeted_end_time)]})
+            self.end_time_src.patch({"text":[(0, "This search end time(estimated): {}".format(estimeted_end_time))]})
             if len(cv_results) != len(self.cv_src.data[NoteBookVisualizer.time_col]):
                 self.cv_src.stream(cv_results[list(self.cv_src.data.keys())].iloc[-1:].to_dict(orient="list"), 
                                    rollover=NoteBookVisualizer.stream_rollover)
