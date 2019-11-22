@@ -17,6 +17,7 @@ setup(
                             "hyperopt>=0.1", 
                             "networkx==1.11", 
                             "GPy>=1.9.2", 
-                            "gpyopt>=1.2.1", 
+                            "gpyopt>=1.2.1",
+                            "tzlocal>=2.0.0",
                             "bokeh>=0.12.14"],
         )
