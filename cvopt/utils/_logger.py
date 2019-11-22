@@ -187,10 +187,10 @@ class CVSummarizer:
                 estimated_end_time = np.nan
             else:
                 estimated_end_time = start_time + timedelta(seconds=self.next_elapsed_time)
-                estimated_end_time = estimated_end_time.strftime("%m/%d %H:%M")
+                estimated_end_time = estimated_end_time.astimezone(timezone.utc).strftime("%m/%d %H:%M")
 
             if self.verbose == 1:
-                start_time = start_time.strftime("%m/%d %H:%M")
+                start_time = start_time.astimezone(timezone.utc).strftime("%m/%d %H:%M")
                 sys.stdout.write("\rNum_of_search:%s  Start:%s  End(estimated):%s  Best_score:%s" 
                                 %(n_search, start_time, estimated_end_time, np.round(self.best_score_, 2)))
             elif self.verbose == 2:
