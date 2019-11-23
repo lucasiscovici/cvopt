@@ -526,7 +526,7 @@ class NoteBookVisualizer():
                         display(Javascript("""
                             document.getElementById("ooi").innerHTML=" Score History ({}/{})";
                         """.format(nbi,tot)))
-                    self.last=nbi
+                        self.last=nbi
                 except:
                     pass
                 
