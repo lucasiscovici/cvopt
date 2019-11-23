@@ -386,6 +386,7 @@ class NoteBookVisualizer():
         self.savepath = savepath
 
         self.bokeh_handle = None
+        self.last=0
         
     def fit(self, cv_results, estimeted_end_time):
         cv_results, cv_score_std, param_dists = self._init_cv_results(cv_results)
@@ -520,10 +521,12 @@ class NoteBookVisualizer():
                 
                 try:
                     nbi=len(self.cv_src.data[NoteBookVisualizer.time_col])+1
-                    from IPython.display import Javascript,display
-                    display(Javascript("""
-                        document.getElementById("ooi").innerHTML=" Score History ({}/{})";
-                    """.format(nbi,tot)))
+                    if nbi > self.last:
+                        from IPython.display import Javascript,display
+                        display(Javascript("""
+                            document.getElementById("ooi").innerHTML=" Score History ({}/{})";
+                        """.format(nbi,tot)))
+                    self.last=nbi
                 except:
                     pass
                 
