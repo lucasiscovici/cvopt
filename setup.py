@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 setup(
-        name             = "cvopt",
+        name             = "cvopt_study",
         version          = "0.4.1",
         description      = "Parameter search and feature selection's class, Integrated visualization and archive log.",
         license          = "BSD-2-Clause",
