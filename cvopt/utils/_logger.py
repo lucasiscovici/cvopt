@@ -20,6 +20,19 @@ from ..model_selection import _setting as st
 from ._html import arrang_graph_file
 from ..utils  import _htmlsrc as hs
 
+
+class OrderedDict2(OrderedDict):
+    
+    def __setstate__(self,state):
+        import json
+        data=json.loads(state)
+        self.update(data)
+        return self
+    
+    def __getstate__(self):
+        import json
+        return json.dumps(list(self.items()))
+
 class CVSummarizer:
     """
     Summarize cross validation results.
@@ -69,7 +82,7 @@ class CVSummarizer:
         self.params_keys = ["param_" + str(i) for i in paraname_list]
         self.train_score_keys = ["split"+str(i)+"_train_score" for i in range(cvsize)]
         self.test_score_keys = ["split"+str(i)+"_test_score" for i in range(cvsize)]
-        self.cv_results_ = OrderedDict({"index":[], "params":[]})
+        self.cv_results_ = OrderedDict2({"index":[], "params":[]})
         self.next_elapsed_time = np.nan
         self.nbv = None
 
