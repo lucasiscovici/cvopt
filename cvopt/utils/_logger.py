@@ -384,7 +384,7 @@ class NoteBookVisualizer():
 
         self.bokeh_handle = None
         callback_holder = PreText(text='', css_classes=['hidden'])
-        callback = CustomJS(args={}, code='document.getElementById("ooi").innerHTML=cb_obj.text;')
+        callback = CustomJS(args={}, code='console.log("cb_obj.text");document.getElementById("ooi").innerHTML=cb_obj.text;')
         callback_holder.js_on_change('text', callback)
         self.callback_holder=callback_holder
         
@@ -506,7 +506,7 @@ class NoteBookVisualizer():
             title = Div(text="<span id='ooi'>"+NoteBookVisualizer.title.replace("TEXT", self.model_id)+"</span>", width=int(NoteBookVisualizer.display_width))
             scores_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", " Score History ({}/{})".format(nbi,tot)), width=int(NoteBookVisualizer.display_width*0.9))
             params_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", " Parameter History"), width=int(NoteBookVisualizer.display_width*0.9))
-            self.p = layouts.layout([title, [scores_headline]]+[[cv_p, best_p]]+[[params_headline]]+\
+            self.p = layouts.layout([title, [scores_headline],self.callback_holder]+[[cv_p, best_p]]+[[params_headline]]+\
                                [list(param_vbar_ps.values())[i:i+NoteBookVisualizer.n_col_param] for i in range(0, len(param_vbar_ps), NoteBookVisualizer.n_col_param)]+\
                                [list(param_hist_ps.values())[i:i+NoteBookVisualizer.n_col_param] for i in range(0, len(param_hist_ps), NoteBookVisualizer.n_col_param)])
             self.bokeh_handle = show(self.p, notebook_handle=True)
