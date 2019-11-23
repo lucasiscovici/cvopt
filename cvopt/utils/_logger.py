@@ -503,8 +503,8 @@ class NoteBookVisualizer():
                     param_hist_ps[param_col].yaxis.minor_tick_line_color = None 
                     param_hist_ps[param_col] = self._arrange_fig(param_hist_ps[param_col])
                     
-            title = Div(text="<span id='ooi'>"+NoteBookVisualizer.title.replace("TEXT", self.model_id)+"</span>", width=int(NoteBookVisualizer.display_width))
-            scores_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", " Score History ({}/{})".format(nbi,tot)), width=int(NoteBookVisualizer.display_width*0.9))
+            title = Div(text=NoteBookVisualizer.title.replace("TEXT", self.model_id), width=int(NoteBookVisualizer.display_width))
+            scores_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", "<span id='ooi'> Score History ({}/{})</span>".format(nbi,tot)), width=int(NoteBookVisualizer.display_width*0.9))
             params_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", " Parameter History"), width=int(NoteBookVisualizer.display_width*0.9))
             self.p = layouts.layout([title, [scores_headline],self.callback_holder]+[[cv_p, best_p]]+[[params_headline]]+\
                                [list(param_vbar_ps.values())[i:i+NoteBookVisualizer.n_col_param] for i in range(0, len(param_vbar_ps), NoteBookVisualizer.n_col_param)]+\
