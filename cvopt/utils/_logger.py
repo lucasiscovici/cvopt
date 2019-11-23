@@ -11,7 +11,7 @@ from bokeh.plotting import figure, ColumnDataSource, curdoc
 from bokeh.resources import INLINE
 from bokeh.models import HoverTool, SaveTool, WheelZoomTool, ResetTool, PanTool, BoxZoomTool, LabelSet, CustomJS
 from bokeh.models.ranges import DataRange1d, FactorRange
-from bokeh.models.widgets import Div
+from bokeh.models.widgets import Div, PreText
 
 from tzlocal import get_localzone
 
