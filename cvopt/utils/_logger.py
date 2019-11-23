@@ -50,7 +50,7 @@ class CVSummarizer:
         Flag whether greater is better or not.
     """
     def __init__(self, paraname_list, cvsize, score_summarizer, score_summarizer_name, valid, 
-                 sign, model_id, search_algo, verbose, save_estimator, logdir=None):
+                 sign, model_id, search_algo, verbose, save_estimator,nbTot=0, logdir=None):
         self.score_summarizer = score_summarizer
         self.score_summarizer_name = str(score_summarizer_name)
         self.valid = valid
@@ -61,7 +61,7 @@ class CVSummarizer:
         self.verbose = verbose
         self.save_estimator = save_estimator
         self.logdir = logdir
-
+        self.nbTot=nbTot
         self.save_path = None
         self.save_graph_path = None
         if self.logdir is not None:
@@ -215,7 +215,7 @@ class CVSummarizer:
                 if self.nbv is None:
                     if n_search > 0:
                         self.nbv = NoteBookVisualizer(cv_results_cols=self.cv_results_.keys(), sign=self.sign, valid=self.valid, 
-                                                      model_id=self.model_id, savepath=self.save_graph_path)
+                                                      model_id=self.model_id, savepath=self.save_graph_path,nbTot=self.nbTot)
                 else:
                     self.nbv.fit(cv_results=self.cv_results_, estimeted_end_time=estimated_end_time)
             
@@ -365,12 +365,12 @@ class NoteBookVisualizer():
         
         return cv_results, cv_score_std, param_dists
     
-    def __init__(self, cv_results_cols, sign, valid, model_id, savepath):
+    def __init__(self, cv_results_cols, sign, valid, model_id, savepath, nbTot=0):
         if valid:
             self.data_types = ["train", "test", "valid"]
         else:
             self.data_types = ["train", "test"]
-
+        self.nbTot=nbTot
         self.param_feature_cols = [i.split("param_")[-1] for i in cv_results_cols if("param_"+st.FEATURE_SELECT_PARAMNAME_PREFIX in i)&(i!="param_"+st.FEATURE_SELECT_PARAMNAME_PREFIX+str(st.ALWAYS_USED_FEATURE_GROUP_ID))]
         self.all_param_cols = [i.split("param_")[-1] for i in cv_results_cols if("param_" in i)&(i!="param_"+st.FEATURE_SELECT_PARAMNAME_PREFIX+str(st.ALWAYS_USED_FEATURE_GROUP_ID))]
         self.param_cols = list(set(self.all_param_cols)-set(self.param_feature_cols))
@@ -493,8 +493,10 @@ class NoteBookVisualizer():
                     param_hist_ps[param_col].yaxis.minor_tick_line_color = None 
                     param_hist_ps[param_col] = self._arrange_fig(param_hist_ps[param_col])
                     
+            nbi=len(cv_results["index"])
+            tot=self.nbTot
             title = Div(text=NoteBookVisualizer.title.replace("TEXT", self.model_id), width=int(NoteBookVisualizer.display_width))
-            scores_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", " Score History"), width=int(NoteBookVisualizer.display_width*0.9))
+            scores_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", " Score History ({}/{})".format(nbi,tot)), width=int(NoteBookVisualizer.display_width*0.9))
             params_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", " Parameter History"), width=int(NoteBookVisualizer.display_width*0.9))
             self.p = layouts.layout([title, [scores_headline]]+[[cv_p, best_p]]+[[params_headline]]+\
                                [list(param_vbar_ps.values())[i:i+NoteBookVisualizer.n_col_param] for i in range(0, len(param_vbar_ps), NoteBookVisualizer.n_col_param)]+\
