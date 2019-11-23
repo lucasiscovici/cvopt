@@ -514,7 +514,9 @@ class NoteBookVisualizer():
 
                 self._update_cv_score_std_src(cv_score_std)
                 self._update_param_srcs(param_dists)
+                
                 try:
+                    nbi=len(self.cv_src.data[NoteBookVisualizer.time_col])+1
                     from IPython.display import Javascript,display
                     display(Javascript("""
                         document.getElementById("ooi").innerHTML=" Score History ({}/{})";
