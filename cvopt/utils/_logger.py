@@ -187,9 +187,12 @@ class CVSummarizer:
         if (len(Xtrain) ==0) or (len(Xtest)==0):
             self.next_elapsed_time = np.nan
         else:
-            estimator = RandomForestRegressor()
-            estimator.fit(Xtrain, self.cv_results_["elapsed_time_sec"])
-            self.next_elapsed_time = int(estimator.predict(Xtest))
+            try:
+                estimator = RandomForestRegressor()
+                estimator.fit(Xtrain, self.cv_results_["elapsed_time_sec"])
+                self.next_elapsed_time = int(estimator.predict(Xtest))
+            except:
+                self.next_elapsed_time=np.nan
 
     def display_status(self, params, start_time=None):
         if self.verbose > 0:
