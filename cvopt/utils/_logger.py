@@ -386,7 +386,7 @@ class NoteBookVisualizer():
         
     def fit(self, cv_results, estimeted_end_time):
         cv_results, cv_score_std, param_dists = self._init_cv_results(cv_results)
-        nbi=int(cv_results["index"].iloc[-1])
+        nbi=len(cv_results)
         tot=self.nbTot
         if self.bokeh_handle is None:
             if cv_results is None:
@@ -532,7 +532,14 @@ class NoteBookVisualizer():
                           search_algo=search_algo, n_iter=n_iter)
 
     def close(self, search_algo, n_iter):
-        self.end_time_src.patch({"text":[(0, "This search end time(estimated): finished")]})  
+        self.end_time_src.patch({"text":[(0, "This search end time(estimated): finished")]}) 
         push_notebook(handle=self.bokeh_handle) 
+        try:
+            from IPython.display import Javascript,display
+            display(Javascript("""
+                document.getElementById("ooi").innerHTML=" Score History";
+            """))
+        except:
+            pass
         if self.savepath is not None:
             self._save_graph(search_algo=search_algo, n_iter=n_iter)
