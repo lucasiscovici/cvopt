@@ -377,7 +377,7 @@ class NoteBookVisualizer():
         self.param_cols.sort()
         
         self.sign = sign
-        self.cv_results_cols = cv_results_cols
+        self.cv_results_cols = list(cv_results_cols)
         self.valid = valid
         self.model_id = str(model_id)
         self.savepath = savepath
