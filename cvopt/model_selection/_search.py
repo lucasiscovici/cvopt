@@ -185,7 +185,7 @@ class SimpleoptCV():
         self.backend = backend
             
     def __getattr__(self, name):
-        print(name,self.optcv.__class__)
+        print(name)
         rep=getattr(self.optcv, name)
         return rep
 
