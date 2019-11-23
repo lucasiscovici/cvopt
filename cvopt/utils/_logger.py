@@ -171,7 +171,10 @@ class CVSummarizer:
         self._store("search_algo", self.search_algo)
         self._save()
         self._update_best()
-
+    def __getstate__(self):
+        rep=self.__dict__.copy()
+        rep["nbv"]="<notPickable"
+        return rep
     def _estimate_time_sec(self, params):
         df = pd.DataFrame(self.cv_results_["params"]+[params])
 
