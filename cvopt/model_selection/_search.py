@@ -185,8 +185,12 @@ class SimpleoptCV():
         self.backend = backend
             
     def __getattr__(self, name):
-        return getattr(self.optcv, name)
-
+        try:
+            rep=getattr(self.optcv, name)
+        except Exception as e:
+            print(name,self.optcv)
+            raise e
+        return rep
         
 
 class HyperoptCV(BaseSearcher):
