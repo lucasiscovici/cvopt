@@ -185,9 +185,9 @@ class SimpleoptCV():
         self.backend = backend
             
     def __getattr__(self, name):
-        print(name)
-        rep=getattr(self.optcv, name)
-        return rep
+        if name.startswith('__') and name.endswith('__'):
+            return super().__getattr__(name)
+        return getattr(self.optcv, name)
 
 class HyperoptCV(BaseSearcher):
     """
