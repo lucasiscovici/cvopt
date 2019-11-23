@@ -35,7 +35,7 @@ class BaseSearcher(BaseEstimator, metaclass=ABCMeta):
 
     def __init__(self, estimator, param_distributions, 
                  scoring, cv, n_jobs, pre_dispatch, 
-                 verbose, logdir, save_estimator, saver, model_id, cloner, refit, backend,nbTot=0):
+                 verbose, logdir, save_estimator, saver, model_id, cloner, refit, backend,max_iter=32):
         # BACKLOG: Implement iid option(sklearn GridSearchCV have this option).
         
         self.estimator = estimator
@@ -58,7 +58,7 @@ class BaseSearcher(BaseEstimator, metaclass=ABCMeta):
         self.saver = saver
         self.cloner = cloner
         self._cloner =  make_cloner(cloner)
-        self.nbTot=nbTot
+        self.max_iter=max_iter
 
         self.backend = backend
 
@@ -90,7 +90,7 @@ class BaseSearcher(BaseEstimator, metaclass=ABCMeta):
             param_distributions = mk_feature_select_params(feature_groups, n_samples=X.shape[0], 
                                                            n_features=X.shape[BaseSearcher.feature_axis])
         param_distributions.update(self.param_distributions)
-        nbTot=self.nbTot
+        nbTot=self.max_iter
         self._cvs = CVSummarizer(paraname_list=param_distributions.keys(), cvsize=self.n_splits_, 
                                  score_summarizer=BaseSearcher.score_summarizer, score_summarizer_name=BaseSearcher.score_summarizer_name, 
                                  valid=valid, sign=self.sign, model_id=self.model_id, search_algo=self.search_algo, 
