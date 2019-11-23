@@ -383,19 +383,11 @@ class NoteBookVisualizer():
         self.savepath = savepath
 
         self.bokeh_handle = None
-        callback_holder = PreText(text='', css_classes=['hidden'])
-        callback = CustomJS(args={}, code='console.log("cb_obj.text");document.getElementById("ooi").innerHTML=cb_obj.text;')
-        callback_holder.js_on_change('text', callback)
-        self.callback_holder=callback_holder
         
     def fit(self, cv_results, estimeted_end_time):
         cv_results, cv_score_std, param_dists = self._init_cv_results(cv_results)
         nbi=int(cv_results["index"].iloc[-1])
         tot=self.nbTot
-        def update(text):
-            self.callback_holder.text = text
-        def update_update(text):
-            return lambda text=text: update(text)
         if self.bokeh_handle is None:
             if cv_results is None:
                 return
@@ -506,13 +498,19 @@ class NoteBookVisualizer():
             title = Div(text=NoteBookVisualizer.title.replace("TEXT", self.model_id), width=int(NoteBookVisualizer.display_width))
             scores_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", "<span id='ooi'> Score History ({}/{})</span>".format(nbi,tot)), width=int(NoteBookVisualizer.display_width*0.9))
             params_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", " Parameter History"), width=int(NoteBookVisualizer.display_width*0.9))
-            self.p = layouts.layout([title, [scores_headline],self.callback_holder]+[[cv_p, best_p]]+[[params_headline]]+\
+            self.p = layouts.layout([title, [scores_headline]]+[[cv_p, best_p]]+[[params_headline]]+\
                                [list(param_vbar_ps.values())[i:i+NoteBookVisualizer.n_col_param] for i in range(0, len(param_vbar_ps), NoteBookVisualizer.n_col_param)]+\
                                [list(param_hist_ps.values())[i:i+NoteBookVisualizer.n_col_param] for i in range(0, len(param_hist_ps), NoteBookVisualizer.n_col_param)])
             self.bokeh_handle = show(self.p, notebook_handle=True)
         else:
             # update bokeh src
-            curdoc().add_next_tick_callback(update_update(" Score History ({}/{})".format(nbi,tot)))
+            try:
+                from IPython.display import Javascript,display
+                display(Javascript("""
+                    document.getElementById("ooi").innerHTML=" Score History ({}/{})";
+                """.format(nbi,tot)))
+            except:
+                pass
             self.end_time_src.patch({"text":[(0, "This search end time(estimated): {}".format(estimeted_end_time))]})
             if len(cv_results) != len(self.cv_src.data[NoteBookVisualizer.time_col]):
                 self.cv_src.stream(cv_results[list(self.cv_src.data.keys())].iloc[-1:].to_dict(orient="list"), 
@@ -523,7 +521,10 @@ class NoteBookVisualizer():
 
                 self._update_cv_score_std_src(cv_score_std)
                 self._update_param_srcs(param_dists)
-                
+            display(HTML("""
+               <script> 
+            </script>
+            """)
             if self.savepath is not None:
                 self._save_graph(search_algo=str(cv_results["search_algo"].iloc[0]), n_iter=int(cv_results["index"].iloc[-1]))
 
