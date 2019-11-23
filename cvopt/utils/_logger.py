@@ -7,7 +7,7 @@ from sklearn.ensemble import RandomForestRegressor
 
 from bokeh import layouts
 from bokeh.io import output_file, output_notebook, push_notebook, show, save
-from bokeh.plotting import figure, ColumnDataSource
+from bokeh.plotting import figure, ColumnDataSource, curdoc
 from bokeh.resources import INLINE
 from bokeh.models import HoverTool, SaveTool, WheelZoomTool, ResetTool, PanTool, BoxZoomTool, LabelSet, CustomJS
 from bokeh.models.ranges import DataRange1d, FactorRange
@@ -383,10 +383,19 @@ class NoteBookVisualizer():
         self.savepath = savepath
 
         self.bokeh_handle = None
+        callback_holder = PreText(text='', css_classes=['hidden'])
+        callback = CustomJS(args={}, code='document.getElementById("ooi").innerHTML=cb_obj.text;')
+        callback_holder.js_on_change('text', callback)
+        self.callback_holder=callback_holder
         
     def fit(self, cv_results, estimeted_end_time):
         cv_results, cv_score_std, param_dists = self._init_cv_results(cv_results)
-
+        nbi=int(cv_results["index"].iloc[-1])
+        tot=self.nbTot
+        def update(text):
+            self.callback_holder.text = text
+        def update_update(text):
+            return lambda text=text: update(text)
         if self.bokeh_handle is None:
             if cv_results is None:
                 return
@@ -394,6 +403,7 @@ class NoteBookVisualizer():
             # mk bokeh source
             self.cv_src, cv_hover = self._mk_score_source(cv_results, xcol=NoteBookVisualizer.time_col, score_cols=[NoteBookVisualizer.score_cols[i] for i in self.data_types], 
                                                           hover_cols=self.all_param_cols)
+            
             self.end_time_src = ColumnDataSource(data=dict(text=["This search end time(estimated): {}".format(estimeted_end_time)]))
             self.cv_score_std_src = ColumnDataSource(data=cv_score_std)
             self.best_src = self._mk_score_source(cv_results, xcol=NoteBookVisualizer.time_col, score_cols=["best_"+i for i in self.data_types])
@@ -493,9 +503,7 @@ class NoteBookVisualizer():
                     param_hist_ps[param_col].yaxis.minor_tick_line_color = None 
                     param_hist_ps[param_col] = self._arrange_fig(param_hist_ps[param_col])
                     
-            nbi=len(cv_results["index"])
-            tot=self.nbTot
-            title = Div(text=NoteBookVisualizer.title.replace("TEXT", self.model_id), width=int(NoteBookVisualizer.display_width))
+            title = Div(text="<span id='ooi'>"+NoteBookVisualizer.title.replace("TEXT", self.model_id)+"</span>", width=int(NoteBookVisualizer.display_width))
             scores_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", " Score History ({}/{})".format(nbi,tot)), width=int(NoteBookVisualizer.display_width*0.9))
             params_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", " Parameter History"), width=int(NoteBookVisualizer.display_width*0.9))
             self.p = layouts.layout([title, [scores_headline]]+[[cv_p, best_p]]+[[params_headline]]+\
@@ -504,6 +512,7 @@ class NoteBookVisualizer():
             self.bokeh_handle = show(self.p, notebook_handle=True)
         else:
             # update bokeh src
+            curdoc().add_next_tick_callback(update_update(" Score History ({}/{})".format(nbi,tot)))
             self.end_time_src.patch({"text":[(0, "This search end time(estimated): {}".format(estimeted_end_time))]})
             if len(cv_results) != len(self.cv_src.data[NoteBookVisualizer.time_col]):
                 self.cv_src.stream(cv_results[list(self.cv_src.data.keys())].iloc[-1:].to_dict(orient="list"), 
@@ -514,7 +523,7 @@ class NoteBookVisualizer():
 
                 self._update_cv_score_std_src(cv_score_std)
                 self._update_param_srcs(param_dists)
-
+                
             if self.savepath is not None:
                 self._save_graph(search_algo=str(cv_results["search_algo"].iloc[0]), n_iter=int(cv_results["index"].iloc[-1]))
 
