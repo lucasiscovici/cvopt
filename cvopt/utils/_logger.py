@@ -504,13 +504,6 @@ class NoteBookVisualizer():
             self.bokeh_handle = show(self.p, notebook_handle=True)
         else:
             # update bokeh src
-            try:
-                from IPython.display import Javascript,display
-                display(Javascript("""
-                    document.getElementById("ooi").innerHTML=" Score History ({}/{})";
-                """.format(nbi,tot)))
-            except:
-                pass
             self.end_time_src.patch({"text":[(0, "This search end time(estimated): {}".format(estimeted_end_time))]})
             if len(cv_results) != len(self.cv_src.data[NoteBookVisualizer.time_col]):
                 self.cv_src.stream(cv_results[list(self.cv_src.data.keys())].iloc[-1:].to_dict(orient="list"), 
@@ -521,10 +514,14 @@ class NoteBookVisualizer():
 
                 self._update_cv_score_std_src(cv_score_std)
                 self._update_param_srcs(param_dists)
-            display(HTML("""
-               <script> 
-            </script>
-            """)
+                try:
+                    from IPython.display import Javascript,display
+                    display(Javascript("""
+                        document.getElementById("ooi").innerHTML=" Score History ({}/{})";
+                    """.format(nbi,tot)))
+                except:
+                    pass
+                
             if self.savepath is not None:
                 self._save_graph(search_algo=str(cv_results["search_algo"].iloc[0]), n_iter=int(cv_results["index"].iloc[-1]))
 
