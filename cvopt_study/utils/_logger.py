@@ -20,6 +20,11 @@ from ..model_selection import _setting as st
 from ._html import arrang_graph_file
 from ..utils  import _htmlsrc as hs
 
+def randomString(stringLength=10):
+    """Generate a random string of fixed length """
+    import string, random
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(stringLength))
 
 class OrderedDict2(OrderedDict):
     
@@ -498,9 +503,9 @@ class NoteBookVisualizer():
                     param_hist_ps[param_col].xaxis.minor_tick_line_color = None 
                     param_hist_ps[param_col].yaxis.minor_tick_line_color = None 
                     param_hist_ps[param_col] = self._arrange_fig(param_hist_ps[param_col])
-                    
+            self.stri=randomString()
             title = Div(text=NoteBookVisualizer.title.replace("TEXT", self.model_id), width=int(NoteBookVisualizer.display_width))
-            scores_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", "<span id='ooi'> Score History ({}/{})</span>".format(nbi,tot)), width=int(NoteBookVisualizer.display_width*0.9))
+            scores_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", "<span id='ooi_{}'> Score History ({}/{})</span>".format(self.stri,nbi,tot)), width=int(NoteBookVisualizer.display_width*0.9))
             params_headline = Div(text=NoteBookVisualizer.headline.replace("TEXT", " Parameter History"), width=int(NoteBookVisualizer.display_width*0.9))
             self.p = layouts.layout([title, [scores_headline]]+[[cv_p, best_p]]+[[params_headline]]+\
                                [list(param_vbar_ps.values())[i:i+NoteBookVisualizer.n_col_param] for i in range(0, len(param_vbar_ps), NoteBookVisualizer.n_col_param)]+\
@@ -524,8 +529,8 @@ class NoteBookVisualizer():
                     if nbi > self.last:
                         from IPython.display import Javascript,display
                         display(Javascript("""
-                            document.getElementById("ooi").innerHTML=" Score History ({}/{})";
-                        """.format(nbi,tot)))
+                            document.getElementById("ooi_{}").innerHTML=" Score History ({}/{})";
+                        """.format(self.stri,nbi,tot)))
                         self.last=nbi
                 except:
                     pass
@@ -545,8 +550,8 @@ class NoteBookVisualizer():
         try:
             from IPython.display import Javascript,display
             display(Javascript("""
-                document.getElementById("ooi").innerHTML=" Score History";
-            """))
+                document.getElementById("ooi_{}").innerHTML=" Score History";
+            """.format(self.stri)))
         except:
             pass
         if self.savepath is not None:
