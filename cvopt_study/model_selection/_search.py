@@ -595,11 +595,11 @@ class BayesoptCV(BaseSearcher):
                  random_state=None, n_jobs=1, pre_dispatch="2*n_jobs", 
                  verbose=0, logdir=None, save_estimator=0, saver="sklearn", model_id=None, 
                  cloner="sklearn", refit=True, 
-                 max_time=np.inf, model_type="GP", initial_params=None, initial_score=None, 
+                 max_time=np.inf, model=None, model_type="GP", initial_params=None, initial_score=None, 
                  initial_design_numdata=5, initial_design_type="random", 
                  acquisition_type="EI", normalize_Y=True, exact_feval=False, 
                  acquisition_optimizer_type="lbfgs", model_update_interval=1, 
-                 evaluator_type="sequential", batch_size=1):
+                 evaluator_type="sequential", batch_size=1,**blabla):
 
         super().__init__(estimator=estimator, param_distributions=param_distributions, 
                          scoring=scoring, cv=cv, n_jobs=n_jobs, pre_dispatch=pre_dispatch, 
@@ -610,6 +610,7 @@ class BayesoptCV(BaseSearcher):
         self.max_iter = max_iter
         self.max_time = max_time
         self.model_type = model_type
+        self.model = model
         self.initial_params = initial_params
         self.initial_score = initial_score
         self.initial_design_numdata = initial_design_numdata
@@ -621,12 +622,12 @@ class BayesoptCV(BaseSearcher):
         self.model_update_interval = model_update_interval
         self.evaluator_type = evaluator_type
         self.batch_size = batch_size
-        
+        self.blabla=blabla
         self.failedscore = None
         self.search_algo = "bayesopt"
 
     def fit(self, X, y=None, validation_data=None, groups=None, 
-            feature_groups=None, min_n_features=2, *args, **kwargs):
+            feature_groups=None, min_n_features=2, methodArgs={}, *args, **kwargs):
         """
         Run fit.
 
@@ -680,7 +681,7 @@ class BayesoptCV(BaseSearcher):
                                         exact_feval=self.exact_feval, acquisition_optimizer_type=self.acquisition_optimizer_type, 
                                         model_update_interval=self.model_update_interval, evaluator_type=self.evaluator_type, 
                                         batch_size=self.batch_size, num_cores=1, verbosity=False, verbosity_model=False, 
-                                        maximize=False, de_duplication=False)   
+                                        maximize=False, de_duplication=False,**self.blabla,**methodArgs)   
 
         try :
             self.opt.run_optimization(max_iter=self.max_iter, max_time=self.max_time, *args, **kwargs)
