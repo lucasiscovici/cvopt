@@ -137,7 +137,7 @@ def conv_param_distributions(param_distributions, backend):
     """
     Convert param_distributions from cvopt style to backend style.
     """
-    if backend == "hyperopt":
+    if backend in ["hyperopt","hyperbandopt"]:
         ret = {}
     elif backend == "bayesopt":
         ret = []
@@ -147,7 +147,7 @@ def conv_param_distributions(param_distributions, backend):
     for param_name in param_distributions:
         if type(param_distributions[param_name]) == ParamDist:
             try:
-                if backend == "hyperopt":
+                if backend in ["hyperopt","hyperbandopt"]:
                     ret[param_name] = _conv_hyperopt_param_dist(param_name, param_distributions[param_name])
                 elif backend == "bayesopt":
                     ret.append(_conv_gpyopt_param_dist(param_name, param_distributions[param_name]))
@@ -157,7 +157,7 @@ def conv_param_distributions(param_distributions, backend):
                 raise ValueError("parameter:"+ param_name + "'s setting is not supported.")
                 
         else:
-            if backend == "hyperopt":
+            if backend in ["hyperopt","hyperbandopt"]:
                 ret[param_name] = param_distributions[param_name]
             elif backend == "bayesopt":
                 if(param_distributions[param_name]["type"]=="categorical") & ("categories" not in param_distributions[param_name]):
@@ -176,7 +176,7 @@ def decode_params(params, param_distributions, backend):
     """
     Decode params from backend style to dict(key:param name, value:param value).
     """
-    if backend == "hyperopt":
+    if backend in ["hyperopt","hyperbandopt"]:
         return params
     elif backend == "bayesopt":
         ret = {}

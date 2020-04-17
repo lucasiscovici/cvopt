@@ -2,11 +2,63 @@ import numpy as np
 
 from hyperopt import fmin, tpe, hp
 from GPyOpt.methods import BayesianOptimization
-
+import GPyOpt.optimization.optimizer  as GPyOO
+from  GPyOpt.optimization.optimizer import OptLbfgs, OptDirect, OptCma, Optimizer
+from GPyOpt.core.errors import InvalidVariableNameError
 from ._base import BaseSearcher, fit_and_score, mk_feature_select_index, mk_objfunc
 from ._ga import gamin
 from ..utils._base import compress
 from ..utils._logger import CVSummarizer, NoteBookVisualizer
+from ._forest import RandomForestRegressor, ExtraTreesRegressor
+from ._gbrt import GradientBoostingQuantileRegressor
+from ._hyperband import Hyperband
+from hyperopt.pyll.stochastic import sample
+
+#ADD optSampling to GPYopt
+class OptSampling(Optimizer):
+    '''
+OptSampling
+    '''
+    def __init__(self, bounds, maxiter=1000):
+        super(OptSampling, self).__init__(bounds)
+        self.maxiter = maxiter
+
+    def optimize(self, x0, f=None, df=None, f_df=None):
+        """
+        :param x0: initial point for a local optimizer.
+        :param f: function to optimize.
+        :param df: gradient of the function to optimize.
+        :param f_df: returns both the function to optimize and its gradient.
+        """
+        #X[np.argmin(values)]
+        return x0, f(x0)
+
+        
+
+def choose_optimizer(optimizer_name, bounds):
+        """
+        Selects the type of local optimizer
+        """
+        if optimizer_name == 'lbfgs':
+            optimizer = OptLbfgs(bounds)
+
+        elif optimizer_name == 'DIRECT':
+            optimizer = OptDirect(bounds)
+
+        elif optimizer_name == 'CMA':
+            optimizer = OptCma(bounds)
+
+        elif optimizer_name == 'sampling':
+            optimizer = OptSampling(bounds)
+        else:
+            if hasattr(optimizer_name,"optimize") :
+                optimizer=optimizer_name
+            else:
+                raise InvalidVariableNameError('Invalid optimizer selected.')
+        return optimizer
+
+choose_optimizer_olg=GPyOO.choose_optimizer
+GPyOO.choose_optimizer=choose_optimizer
 
 class SimpleoptCV():
     """
@@ -174,6 +226,13 @@ class SimpleoptCV():
                                  **kwargs)
         elif backend == "randomopt":
             self.optcv = RandomoptCV(estimator, param_distributions, 
+                                     scoring=scoring, cv=cv, max_iter=max_iter, random_state=random_state, 
+                                     n_jobs=n_jobs, pre_dispatch=pre_dispatch, verbose=verbose, logdir=logdir, 
+                                     save_estimator=save_estimator, saver=saver, model_id=model_id, refit=refit, 
+                                     cloner=cloner, 
+                                     **kwargs)
+        elif backend == "hyperbandopt":
+            self.optcv = HyperbandoptCV(estimator, param_distributions, 
                                      scoring=scoring, cv=cv, max_iter=max_iter, random_state=random_state, 
                                      n_jobs=n_jobs, pre_dispatch=pre_dispatch, verbose=verbose, logdir=logdir, 
                                      save_estimator=save_estimator, saver=saver, model_id=model_id, refit=refit, 
@@ -599,7 +658,7 @@ class BayesoptCV(BaseSearcher):
                  initial_design_numdata=5, initial_design_type="random", 
                  acquisition_type="EI", normalize_Y=True, exact_feval=False, 
                  acquisition_optimizer_type="lbfgs", model_update_interval=1, 
-                 evaluator_type="sequential", batch_size=1,**blabla):
+                 evaluator_type="sequential", batch_size=1,modelXargs={},customFun=lambda a:None,**blabla):
 
         super().__init__(estimator=estimator, param_distributions=param_distributions, 
                          scoring=scoring, cv=cv, n_jobs=n_jobs, pre_dispatch=pre_dispatch, 
@@ -624,7 +683,25 @@ class BayesoptCV(BaseSearcher):
         self.batch_size = batch_size
         self.blabla=blabla
         self.failedscore = None
+        self.modelXargs=modelXargs
         self.search_algo = "bayesopt"
+        self.find_model()
+        customFun(self)
+        # self.check_acq_opimizer()
+
+    def find_model(self):
+        if self.model is None and self.model_type in ["RF","ET","GBRT"]:
+            if self.model_type in ["RF"]:
+                self.model = RandomForestRegressor
+            elif self.model_type in ["ET"]:
+                self.model = ExtraTreesRegressor
+            elif self.model_type in ["GBRT"]:
+                self.model=GradientBoostingQuantileRegressor
+
+            self.model=self.model(**self.modelXargs)
+            self.model_type=None
+            self.acquisition_optimizer_type = "sampling"
+
 
     def fit(self, X, y=None, validation_data=None, groups=None, 
             feature_groups=None, min_n_features=2, methodArgs={}, *args, **kwargs):
@@ -672,7 +749,6 @@ class BayesoptCV(BaseSearcher):
                          saver=self.saver,  cloner=self._cloner, score_summarizer=BaseSearcher.score_summarizer, 
                          Xvalid=Xvalid, yvalid=yvalid, n_jobs=self.n_jobs, pre_dispatch=self.pre_dispatch, 
                          cvsummarizer=self._cvs, save_estimator=self.save_estimator, min_n_features=min_n_features)
-
         self.opt = BayesianOptimization(obj, domain=param_distributions, constraints=None, cost_withGradients=None, 
                                         model_type=self.model_type, X=self.initial_params, Y=self.initial_score,
                                         initial_design_numdata=self.initial_design_numdata, 
@@ -680,7 +756,7 @@ class BayesoptCV(BaseSearcher):
                                         acquisition_type=self.acquisition_type, normalize_Y=self.normalize_Y,
                                         exact_feval=self.exact_feval, acquisition_optimizer_type=self.acquisition_optimizer_type, 
                                         model_update_interval=self.model_update_interval, evaluator_type=self.evaluator_type, 
-                                        batch_size=self.batch_size, num_cores=1, verbosity=False, verbosity_model=False, 
+                                        batch_size=self.batch_size, num_cores=self.n_jobs, verbosity=False, verbosity_model=False, 
                                         maximize=False, de_duplication=False,**self.blabla,**methodArgs)   
 
         try :
@@ -1106,6 +1182,218 @@ class RandomoptCV(BaseSearcher):
             gamin(obj, param_distributions, max_iter=self.max_iter, iter_pergeneration=1, 
                   param_crossover_proba=0, param_mutation_proba=0, 
                   random_sampling_proba=1, cvsummarizer=self._cvs, *args, **kwargs)
+        except KeyboardInterrupt:
+            pass
+
+        self._postproc_fit(X=X, y=y, feature_groups=feature_groups, 
+                           best_params=self._cvs.best_params_, best_score=self._cvs.best_score_)
+        return self
+
+class HyperbandoptCV(BaseSearcher):
+    """
+    Cross validation optimizer by HyperbandoptCV.
+
+    Parameters
+    ----------
+    estimator
+        scikit-learn estimator like.
+
+    param_distributions: dict.
+        Search space.
+
+    scoring: string or sklearn.metrics.make_scorer.
+        Evaluation index of search.
+        When scoring is None, use stimator default scorer and this score greater is better.
+        
+    cv: scikit-learn cross-validator or int(number of folds), default=5.
+        Cross validation setting.
+
+    max_iter: int, default=32.
+        Number of search.
+
+    random_state: int or None, default=None.
+        The seed used by the random number generator.
+
+    n_jobs: int, default=1.
+        Number of jobs to run in parallel.
+
+    pre_dispatch: int or string, default="2*n_jobs".
+        Controls the number of jobs that get dispatched during parallel.
+
+    verbose: int(0, 1 or 2), default=0.
+        Controls the verbosity
+        
+        0: don't display status.
+
+        1: display status by stdout.
+        
+        2: display status by graph.
+
+    logdir: str or None, default=None.
+        Path of directory to save log file.
+        When logdir is None,  log is not saved.
+        
+        [directory structure]
+        
+        logdir
+        
+        |-cv_results
+        
+        | |-{model_id}.csv                                      : search log
+        
+        | ...
+
+        |-cv_results_graph
+        
+        | |-{model_id}.html                                     : search log(graph)
+        
+        | ...
+        
+        |-estimators_{model_id}
+        
+            |-{model_id}_index{search count}_split{fold count}.pkl: an estimator which is fitted fold train data
+            
+            ...
+            
+            |-{model_id}_index{search count}_test.pkl             : an estimator which is fitted whole train data.
+
+    save_estimator: int, default=0.
+        estimator save setting.
+        
+        0: An estimator is not saved.
+        
+        1: An estimator which is fitted fold train data is saved per cv-fold.
+        
+        2: In addition to 1, an estimator which is fitted whole train data is saved per cv.
+
+    saver: str or function, default="sklearn".
+        estimator`s saver.
+        
+        * `sklearn`: use `sklearn.externals.joblib.dump`. Basically for scikit-learn.
+
+        * function: function whose variable are model class and save path.
+
+        Examples
+        --------
+        >>> def saver(model, path):
+        >>>     save_model(model, path+".h5")
+
+    model_id: str or None, default=None.
+        This is used to log filename.
+        When model_id is None, this is generated by date time.
+
+    cloner: str or function, default="sklearn".
+        estimator`s cloner.
+        
+        * `sklearn`: use try:`sklearn.base.clone`, except:`copy.deepcopy`. Basically for scikit-learn.
+
+        * function: function whose variable is model.
+
+        Examples
+        --------
+        >>> def cloner(model):
+        >>>     clone_model(model)
+
+    refit: bool, default=True.
+        Refit an estimator using the best found parameters on all train data(=X).
+    
+    eta : float, default=3
+        The inverse of the proportion of configurations that are discarded
+        in each round of hyperband.
+    Attributes
+    ----------
+    cv_results_ : dict of numpy (masked) ndarrays
+        A dict with keys as column headers and values as columns, that can be
+        imported into a pandas ``DataFrame``.
+
+    best_estimator_ : estimator or dict
+        Estimator that was chosen by the search.
+
+    best_score_ : float
+        Cross-validated score of the best_estimator.
+
+    best_params_ : dict
+        Parameter setting that gave the best results on the hold out data.
+    """
+    def __init__(self, estimator, param_distributions, 
+                 scoring=None, cv=5, max_iter=32, 
+                 random_state=None, n_jobs=1, pre_dispatch="2*n_jobs", 
+                 verbose=0, logdir=None, save_estimator=0, saver="sklearn", model_id=None, 
+                 cloner="sklearn", refit=True,eta=3):
+
+        super().__init__(estimator=estimator, param_distributions=param_distributions, 
+                         scoring=scoring, cv=cv,  n_jobs=n_jobs, pre_dispatch=pre_dispatch, 
+                         verbose=verbose, logdir=logdir, save_estimator=save_estimator, saver=saver, 
+                         model_id=model_id, cloner=cloner, refit=refit, backend="gaopt")
+
+        self.max_iter = max_iter
+        self.eta=eta
+        if random_state is None:
+            self.random_state = random_state
+        else:
+            self.random_state = np.random.RandomState(int(random_state))
+        self.search_algo = "hyperbandopt"
+
+
+    def fit(self, X, y=None, validation_data=None, groups=None, 
+            feature_groups=None, min_n_features=2,skip_last = 0, dry_run = False , *args, **kwargs):
+        """
+        Run fit.
+
+        Parameters
+        ----------       
+        X :numpy.array, pandas.DataFrame or scipy.sparse, shape(axis=0) = (n_samples)
+            Features. Detail depends on estimator.
+
+        y: np.ndarray or pd.core.frame.DataFrame, shape(axis=0) = (n_samples) or None, default=None.
+            Target variable. detail depends on estimator.
+
+        validation_data: tuple(X, y) or None, default=None.
+            Data to compute validation score. detail depends on estimator.
+            When validation_data is None, computing validation score is not run.
+
+        groups: array-like, shape = (n_samples,)  or None, default=None.
+            Group labels for the samples used while splitting the dataset into train/test set.
+            (input of scikit-learn cross-validator)
+
+        feature_groups: array-like, shape = (n_samples,) or None, default=None.
+            Group labels for the features used while fearture select.
+            When feature_groups is None, fearture selection is not run.
+
+            When feature_group's value is -1, this group's features always are used.
+
+        min_n_features: int, default=2.
+            When number of X's feature cols is less than min_n_features, return search failure.
+            
+            e.g. If estimator has columns sampling function, use this option to avoid X become too small and error.
+
+        skip_last : int, default=0
+            The number of last rounds to skip. For example, this can be used
+            to skip the last round of hyperband, which is standard randomized
+            search. 
+        dry_run = False 
+        """
+        X, y, Xvalid, yvalid, cv, param_distributions = self._preproc_fit(X=X, y=y, validation_data=validation_data, feature_groups=feature_groups)
+        np.random.seed(self.random_state)
+
+
+        obj = mk_objfunc(X=X, y=y, groups=groups, feature_groups=feature_groups, feature_axis=BaseSearcher.feature_axis, 
+                         estimator=self.estimator, scoring=self.scoring, cv=cv, 
+                         param_distributions=param_distributions, backend=self.backend, failedscore=np.nan, 
+                         saver=self.saver, cloner=self._cloner, score_summarizer=BaseSearcher.score_summarizer, 
+                         Xvalid=Xvalid, yvalid=yvalid, n_jobs=self.n_jobs, pre_dispatch=self.pre_dispatch, 
+                         cvsummarizer=self._cvs, save_estimator=self.save_estimator, min_n_features=min_n_features)
+
+
+
+        self.opt = Hyperband(lambda: sample(param_distributions),
+                            lambda nb,params: obj(params),max_iter=self.max_iter,eta=self.eta)
+        
+        try :
+            self.opt.run(X,y, skip_last=skip_last, dry_run=dry_run)
+            # gamin(obj, param_distributions, max_iter=self.max_iter, iter_pergeneration=1, 
+            #       param_crossover_proba=0, param_mutation_proba=0, 
+            #       random_sampling_proba=1, cvsummarizer=self._cvs, *args, **kwargs)
         except KeyboardInterrupt:
             pass
 

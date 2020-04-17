@@ -52,6 +52,9 @@ class BaseSearcher(BaseEstimator, metaclass=ABCMeta):
         self.param_distributions = copy.deepcopy(param_distributions)
         self.verbose = verbose
         self.n_jobs = n_jobs
+        if self.n_jobs==-1:
+            import os
+            self.n_jobs=len(os.sched_getaffinity(0)) 
         self.pre_dispatch = pre_dispatch
         self.logdir = logdir
         self.save_estimator = save_estimator
@@ -333,7 +336,7 @@ def _obj_return(score, succeed, backend):
     greater_is_better=False: score function output = -1*score
     """
 
-    if backend == "hyperopt":
+    if backend in ["hyperopt","hyperbandopt"] :
         if succeed:
             return {"loss":-1.0*score, "status":STATUS_OK}
         else:
