@@ -750,7 +750,7 @@ class BayesoptCV(BaseSearcher):
                          Xvalid=Xvalid, yvalid=yvalid, n_jobs=self.n_jobs, pre_dispatch=self.pre_dispatch, 
                          cvsummarizer=self._cvs, save_estimator=self.save_estimator, min_n_features=min_n_features)
         self.opt = BayesianOptimization(obj, domain=param_distributions, constraints=None, cost_withGradients=None, 
-                                        model_type=self.model_type, X=self.initial_params, Y=self.initial_score,
+                                        model_type=self.model_type,model=self.model, X=self.initial_params, Y=self.initial_score,
                                         initial_design_numdata=self.initial_design_numdata, 
                                         initial_design_type=self.initial_design_type, 
                                         acquisition_type=self.acquisition_type, normalize_Y=self.normalize_Y,
