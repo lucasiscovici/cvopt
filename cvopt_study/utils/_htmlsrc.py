@@ -1,7 +1,8 @@
 pjs_setting = {"hyperopt"  :{"AGENT_TYPE":'"randomwalk"', "CIRCLE_TYPE":'"line"', "min_n_circle":1000, "max_n_circle":4000}, 
                "gaopt"      :{"AGENT_TYPE":'"ga"', "CIRCLE_TYPE":'"normal_sw"', "min_n_circle":500, "max_n_circle":3000}, 
                "bayesopt"   :{"AGENT_TYPE":'"randomwalk"', "CIRCLE_TYPE":'"quad"', "min_n_circle":1000, "max_n_circle":3000}, 
-               "randomopt" :{"AGENT_TYPE":'"random"', "CIRCLE_TYPE":'"normal"', "min_n_circle":50, "max_n_circle":500}, 
+               "randomopt" :{"AGENT_TYPE":'"random"', "CIRCLE_TYPE":'"normal"', "min_n_circle":50, "max_n_circle":500},
+               "hyperbandopt" :{"AGENT_TYPE":'"random"', "CIRCLE_TYPE":'"normal"', "min_n_circle":50, "max_n_circle":500}, 
               }
 n_iter_setting = {"min":0, "max":256}
 

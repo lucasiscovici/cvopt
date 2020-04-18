@@ -8,7 +8,7 @@ from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.utils import check_random_state
 from joblib import Parallel, delayed
-
+from GPyOpt.models.base import  BOModel
 
 def _parallel_fit(regressor, X, y):
     return regressor.fit(X, y)
@@ -35,7 +35,6 @@ class GradientBoostingQuantileRegressor(BaseEstimator, RegressorMixin):
         Set random state to something other than None for reproducible
         results.
     """
-    analytical_gradient_prediction = False
     def __init__(self, quantiles=[0.16, 0.5, 0.84], base_estimator=None,
                  n_jobs=1, random_state=None):
         self.quantiles = quantiles
@@ -84,19 +83,7 @@ class GradientBoostingQuantileRegressor(BaseEstimator, RegressorMixin):
 
         return self
 
-    def get_model_parameters(self):
-        """
-        Returns a 2D numpy array with the parameters of the model
-        """
-        return list(self.get_params().values())
-    
-    def get_model_parameters_names(self):
-        """
-        Returns a list with the names of the parameters of the model
-        """
-        return list(self.get_params().keys())
-
-    def predict(self, X, return_std=True, return_quantiles=False):
+    def predict(self, X, return_std=False, return_quantiles=False):
         """Predict.
         Predict `X` at every quantile if `return_std` is set to False.
         If `return_std` is set to True, then return the mean
@@ -127,3 +114,70 @@ class GradientBoostingQuantileRegressor(BaseEstimator, RegressorMixin):
 
         # return the mean
         return self.regressors_[self.quantiles.index(0.5)].predict(X)
+    
+class GBRTModel(BOModel):
+    """
+    General class for handling a GBRT in GPyOpt.
+    .. Note:: The model has beed wrapper 'as it is' from  Scikit-learn. Check
+    http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html
+    for further details.
+    """
+
+    analytical_gradient_prediction = False
+
+    def __init__(self, quantiles=[0.16, 0.5, 0.84], base_estimator=None,
+                 n_jobs=1, random_state=None):
+
+        self.quantiles = quantiles
+        self.base_estimator = base_estimator
+        self.n_jobs = n_jobs
+        self.random_state = random_state
+        
+        self.model = None
+
+    def _create_model(self, X, Y):
+        """
+        Creates the model given some input data X and Y.
+        """
+        self.X = X
+        self.Y = Y
+        self.model = GradientBoostingQuantileRegressor(quantiles =self. quantiles,
+                                        random_state = self.random_state,
+                                        base_estimator = self.base_estimator,
+                                        n_jobs = self.n_jobs)
+
+        self.model.fit(X,Y.flatten())
+
+
+    def updateModel(self, X_all, Y_all, X_new, Y_new):
+        """
+        Updates the model with new observations.
+        """
+        self.X = X_all
+        self.Y = Y_all
+        if self.model is None:
+            self._create_model(X_all, Y_all)
+        else:
+            self.model.fit(X_all, Y_all.flatten())
+
+    def predict(self, X):
+        """
+        Predictions with the model. Returns posterior means and standard deviations at X.
+        """
+        rep=self.model.predict(X,return_std=True)
+        return np.reshape(rep[0],(-1,1)),np.reshape(rep[1],(-1,1))
+
+    def get_fmin(self):
+        return self.model.predict(self.X).min()
+    
+    def get_model_parameters(self):
+        """
+        Returns a 2D numpy array with the parameters of the model
+        """
+        return np.atleast_2d(list(self.model.get_params().values()))
+    
+    def get_model_parameters_names(self):
+        """
+        Returns a list with the names of the parameters of the model
+        """
+        return list(self.model.get_params().keys())

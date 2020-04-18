@@ -7,7 +7,7 @@ from time import time, ctime
 
 class Hyperband:
 	
-	def __init__( self, get_params_function, try_params_function, max_iter= 81, eta=3):
+	def __init__( self, get_params_function, try_params_function, max_iter= 81, eta=3,*args,**xargs):
 		self.get_params = get_params_function
 		self.try_params = try_params_function
 		
@@ -23,9 +23,10 @@ class Hyperband:
 		self.best_loss = np.inf
 		self.best_counter = -1
 		
+		self.verbose=False 
 
 	# can be called multiple times
-	def run( self, skip_last = 0, dry_run = False ):
+	def run( self,X=None,y=None, skip_last = 0, dry_run = False ,*args,**xargs):
 		
 		for s in reversed( range( self.s_max + 1 )):
 			
@@ -46,7 +47,8 @@ class Hyperband:
 				n_configs = n * self.eta ** ( -i )
 				n_iterations = r * self.eta ** ( i )
 				
-				print ("\n*** {} configurations x {:.1f} iterations each".format( 
+				if self.verbose:
+					print ("\n*** {} configurations x {:.1f} iterations each".format( 
 									n_configs, n_iterations ))
 				
 				val_losses = []
@@ -55,7 +57,8 @@ class Hyperband:
 				for t in T:
 					
 					self.counter += 1
-					print ("\n{} | {} | lowest loss so far: {:.4f} (run {})\n".format( 
+					if self.verbose:
+						print ("\n{} | {} | lowest loss so far: {:.4f} (run {})\n".format( 
 											self.counter, ctime(), self.best_loss, self.best_counter ))
 					
 					start_time = time()
@@ -69,7 +72,8 @@ class Hyperband:
 					assert( 'loss' in result )
 					
 					seconds = int( round( time() - start_time ))
-					print ("\n{} seconds.".format( seconds ))
+					if self.verbose:
+						print ("\n{} seconds.".format( seconds ))
 					
 					loss = result['loss']	
 					val_losses.append( loss )

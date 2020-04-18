@@ -407,7 +407,8 @@ class NoteBookVisualizer():
             
             self.end_time_src = ColumnDataSource(data=dict(text=["This search end time(estimated): {}".format(estimeted_end_time)]))
             self.cv_score_std_src = ColumnDataSource(data=cv_score_std)
-            self.best_src = self._mk_score_source(cv_results, xcol=NoteBookVisualizer.time_col, score_cols=["best_"+i for i in self.data_types])
+            self.best_src = self._mk_score_source(cv_results, xcol=NoteBookVisualizer.time_col, 
+                                                score_cols=["best_"+i for i in self.data_types])
             
             self.param_srcs = dict()
             for key in param_dists.keys():
@@ -452,6 +453,7 @@ class NoteBookVisualizer():
             for data_type in self.data_types:
                 best_p = self._add_line(best_p, xcol=NoteBookVisualizer.time_col, ycol="best_"+data_type, 
                                        score_source=self.best_src, color=NoteBookVisualizer.colors[data_type], legend=data_type)
+            # best_p.add_tools(cv_hover) #TODO HOVER
             best_p.legend.location = "top_left"
             best_p.xaxis.minor_tick_line_color = None
             best_p.yaxis.minor_tick_line_color = None

@@ -2,18 +2,18 @@ import numpy as np
 
 from hyperopt import fmin, tpe, hp
 from GPyOpt.methods import BayesianOptimization
-import GPyOpt.optimization.optimizer  as GPyOO
+import GPyOpt#.optimization.optimizer  as GPyOO
 from  GPyOpt.optimization.optimizer import OptLbfgs, OptDirect, OptCma, Optimizer
 from GPyOpt.core.errors import InvalidVariableNameError
 from ._base import BaseSearcher, fit_and_score, mk_feature_select_index, mk_objfunc
 from ._ga import gamin
 from ..utils._base import compress
 from ..utils._logger import CVSummarizer, NoteBookVisualizer
-from ._forest import RandomForestRegressor, ExtraTreesRegressor
-from ._gbrt import GradientBoostingQuantileRegressor
+from ._forest import RFModel, ETModel
+from ._gbrt import GBRTModel
 from ._hyperband import Hyperband
 from hyperopt.pyll.stochastic import sample
-
+from GPyOpt.core.task.cost import CostModel
 #ADD optSampling to GPYopt
 class OptSampling(Optimizer):
     '''
@@ -31,11 +31,9 @@ OptSampling
         :param f_df: returns both the function to optimize and its gradient.
         """
         #X[np.argmin(values)]
-        return x0, f(x0)
+        return np.atleast_2d(x0), np.atleast_2d(f(x0))
 
-        
-
-def choose_optimizer(optimizer_name, bounds):
+def choose_optimizer2(optimizer_name, bounds):
         """
         Selects the type of local optimizer
         """
@@ -56,9 +54,47 @@ def choose_optimizer(optimizer_name, bounds):
             else:
                 raise InvalidVariableNameError('Invalid optimizer selected.')
         return optimizer
+from GPyOpt.optimization import AcquisitionOptimizer
+from GPyOpt.optimization.optimizer import apply_optimizer
+from GPyOpt.optimization.anchor_points_generator import ObjectiveAnchorPointsGenerator, ThompsonSamplingAnchorPointsGenerator
+max_objective_anchor_points_logic = "max_objective"
+thompson_sampling_anchor_points_logic = "thompson_sampling"
+sobol_design_type = "sobol"
+random_design_type = "random"
+class AcquisitionOptimizer2(AcquisitionOptimizer):
+    def optimize(self, f=None, df=None, f_df=None, duplicate_manager=None):
+        """
+        Optimizes the input function.
+        :param f: function to optimize.
+        :param df: gradient of the function to optimize.
+        :param f_df: returns both the function to optimize and its gradient.
+        """
+        self.f = f
+        self.df = df
+        self.f_df = f_df
+        # raise Exception([self.f])
 
-choose_optimizer_olg=GPyOO.choose_optimizer
-GPyOO.choose_optimizer=choose_optimizer
+        ## --- Update the optimizer, in case context has beee passed.
+        self.optimizer = choose_optimizer2(self.optimizer_name, self.context_manager.noncontext_bounds)
+
+        ## --- Selecting the anchor points and removing duplicates
+        if self.type_anchor_points_logic == max_objective_anchor_points_logic:
+            anchor_points_generator = ObjectiveAnchorPointsGenerator(self.space, random_design_type, f)
+        elif self.type_anchor_points_logic == thompson_sampling_anchor_points_logic:
+            anchor_points_generator = ThompsonSamplingAnchorPointsGenerator(self.space, sobol_design_type, self.model)
+
+        ## -- Select the anchor points (with context)
+        anchor_points = anchor_points_generator.get(duplicate_manager=duplicate_manager, context_manager=self.context_manager)
+
+        ## --- Applying local optimizers at the anchor points and update bounds of the optimizer (according to the context)
+        optimized_points = [apply_optimizer(self.optimizer, a, f=f, df=None, f_df=f_df, duplicate_manager=duplicate_manager, context_manager=self.context_manager, space = self.space) for a in anchor_points]
+        x_min, fx_min = min(optimized_points, key=lambda t:t[1])
+
+        #x_min, fx_min = min([apply_optimizer(self.optimizer, a, f=f, df=None, f_df=f_df, duplicate_manager=duplicate_manager, context_manager=self.context_manager, space = self.space) for a in anchor_points], key=lambda t:t[1])
+
+        return x_min, fx_min
+
+
 
 class SimpleoptCV():
     """
@@ -685,6 +721,7 @@ class BayesoptCV(BaseSearcher):
         self.failedscore = None
         self.modelXargs=modelXargs
         self.search_algo = "bayesopt"
+        self.acquisition_optimizer=None
         self.find_model()
         customFun(self)
         # self.check_acq_opimizer()
@@ -692,15 +729,16 @@ class BayesoptCV(BaseSearcher):
     def find_model(self):
         if self.model is None and self.model_type in ["RF","ET","GBRT"]:
             if self.model_type in ["RF"]:
-                self.model = RandomForestRegressor
+                self.model = RFModel
             elif self.model_type in ["ET"]:
-                self.model = ExtraTreesRegressor
+                self.model = ETModel
             elif self.model_type in ["GBRT"]:
-                self.model=GradientBoostingQuantileRegressor
+                self.model=GBRTModel
 
             self.model=self.model(**self.modelXargs)
             self.model_type=None
             self.acquisition_optimizer_type = "sampling"
+            self.acquisition_optimizer=AcquisitionOptimizer2
 
 
     def fit(self, X, y=None, validation_data=None, groups=None, 
@@ -758,6 +796,25 @@ class BayesoptCV(BaseSearcher):
                                         model_update_interval=self.model_update_interval, evaluator_type=self.evaluator_type, 
                                         batch_size=self.batch_size, num_cores=self.n_jobs, verbosity=False, verbosity_model=False, 
                                         maximize=False, de_duplication=False,**self.blabla,**methodArgs)   
+
+        if self.acquisition_optimizer is not None:
+            self.opt.cost = CostModel(None)
+            self.opt.acquisition_optimizer = self.acquisition_optimizer(self.opt.space, self.opt.acquisition_optimizer_type, model=self.opt.model )  ## more arguments may come here
+        
+            if 'acquisition' not in methodArgs and "acquisition" not in self.blabla:
+                self.opt.acquisition = self.opt._acquisition_chooser()
+                self.opt.evaluator = self.opt._evaluator_chooser()
+            super(BayesianOptimization,self.opt).__init__(  model                  = self.opt.model,
+                                                    space                  = self.opt.space,
+                                                    objective              = self.opt.objective,
+                                                    acquisition            = self.opt.acquisition,
+                                                    evaluator              = self.opt.evaluator,
+                                                    X_init                 = self.opt.X,
+                                                    Y_init                 = self.opt.Y,
+                                                    cost                   = self.opt.cost,
+                                                    normalize_Y            = self.opt.normalize_Y,
+                                                    model_update_interval  = self.opt.model_update_interval,
+                                                    de_duplication         = self.opt.de_duplication)
 
         try :
             self.opt.run_optimization(max_iter=self.max_iter, max_time=self.max_time, *args, **kwargs)
@@ -1324,7 +1381,7 @@ class HyperbandoptCV(BaseSearcher):
         super().__init__(estimator=estimator, param_distributions=param_distributions, 
                          scoring=scoring, cv=cv,  n_jobs=n_jobs, pre_dispatch=pre_dispatch, 
                          verbose=verbose, logdir=logdir, save_estimator=save_estimator, saver=saver, 
-                         model_id=model_id, cloner=cloner, refit=refit, backend="gaopt")
+                         model_id=model_id, cloner=cloner, refit=refit, backend="hyperbandopt")
 
         self.max_iter = max_iter
         self.eta=eta
@@ -1387,7 +1444,7 @@ class HyperbandoptCV(BaseSearcher):
 
 
         self.opt = Hyperband(lambda: sample(param_distributions),
-                            lambda nb,params: obj(params),max_iter=self.max_iter,eta=self.eta)
+                            lambda nb,params: obj(params),max_iter=self.max_iter,eta=self.eta,verbose=self.verbose)
         
         try :
             self.opt.run(X,y, skip_last=skip_last, dry_run=dry_run)
